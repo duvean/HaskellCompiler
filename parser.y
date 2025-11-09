@@ -129,7 +129,6 @@ binding:
 /* --- Объявление функции --- */
 func_definition:
       ID param_list EQUALS expr opt_where { $$ = DeclNode::createFuncDef($1, $2, $4, $5); }
-    | ID EQUALS expr opt_where            { $$ = DeclNode::createFuncDef($1, nullptr, $3, $4); } 
     ;
 
 func_signature:
@@ -255,17 +254,16 @@ expr_list_tail:
 
 /* --- Сопоставление с образцом (Patterns) --- */
 pattern:
-	ID							{ $$ = ExprNode::createVarPattern($1); } // Переменная или Wildcard (если ID = "_")
-	| DEC_LITERAL				{ $$ = ExprNode::createLiteralPattern($1); }
-	| KW_TRUE					{ $$ = ExprNode::createLiteralPattern("true"); }
-	| ID_CAP					{ $$ = ExprNode::createConstructorPattern($1, nullptr); } // Конструктор без аргументов
-	| LEFT_PAREN pattern_list RIGHT_PAREN		{ $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
+	  ID							                        { $$ = ExprNode::createVarPattern($1); } // Переменная или Wildcard (если ID = "_")
+	| DEC_LITERAL				                      { $$ = ExprNode::createLiteralPattern($1); }
+	| KW_TRUE					                        { $$ = ExprNode::createLiteralPattern("true"); }
+	| ID_CAP					                        { $$ = ExprNode::createConstructorPattern($1, nullptr); } // Конструктор без аргументов
+  | LEFT_PAREN RIGHT_PAREN                  { $$ = nullptr; }
+	| LEFT_PAREN pattern_list RIGHT_PAREN		  { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
 	| LEFT_BRACKET pattern_list RIGHT_BRACKET	{ $$ = ExprNode::createListPattern($2); } // Образец списка
-	// Добавление конструкторов с аргументами:
-	| ID_CAP pattern							{ $$ = ExprNode::createConstructorPattern($1, $2); } // Just x
-	// Добавление оператора Cons (::):
-	| pattern COLON pattern				{ $$ = ExprNode::createConsPattern($1, $3); } // x : xs
-	| LEFT_PAREN pattern RIGHT_PAREN	{ $$ = $2; } // Группировка
+	| ID_CAP pattern							            { $$ = ExprNode::createConstructorPattern($1, $2); } // Just x
+	| pattern COLON pattern				            { $$ = ExprNode::createConsPattern($1, $3); } // x : xs
+	| LEFT_PAREN pattern RIGHT_PAREN	        { $$ = $2; } // Группировка
 	;
 
 pattern_list:
