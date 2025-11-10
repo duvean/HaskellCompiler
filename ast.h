@@ -12,6 +12,7 @@ enum NodeType {
     EXPR_LITERAL,
     EXPR_VAR,
     EXPR_BINARY,
+    EXPR_FUNC_CALL,
     EXPR_IF,
     EXPR_ARRAY,
     EXPR_TUPLE,
@@ -96,6 +97,8 @@ public:
     ExprNode* cond = nullptr;
     ExprNode* expr_true = nullptr;
     ExprNode* expr_false = nullptr;
+    ExprNode* function = nullptr;
+    ExprNode* argument = nullptr;
 
     ExprNode(NodeType t) : ASTNode(t) {}
 

@@ -54,6 +54,7 @@ void yyerror(const char *s);
 %token SINGLELINE_COMMENT DOUBLE_PLUS DOUBLE_DOT DOUBLE_BANG DOT_AMPERSAND_DOT DOT_PIPE_DOT DOUBLE_GREATER_EQUAL DOUBLE_GREATER EQUAL_DOUBLE_LESS AT_SIGN TILDE BANG PERCENT KW_DEFAULT KW_CLASS KW_INSTANCE KW_DERIVING KW_IMPORT KW_MODULE KW_FOREIGN KW_INFIX KW_INFIXR KW_AS KW_HIDING KW_QUALIFIED KW_NEWTYPE KW_EXPORT KW_CCALL KW_PRINT KW_GETLINE KW_INT KW_INTEGER KW_CHAR KW_STRING KW_FLOAT KW_BOOL BACKTICK KW_INFIXL AMPERSAND OPERATOR LBRACE RBRACE
 
 /* ==== Приоритеты ==== */
+%left APPLY_PREC
 %nonassoc KW_IN
 %left DOT
 %right DOLLAR
@@ -185,7 +186,7 @@ expr:
     | LEFT_PAREN expr RIGHT_PAREN              { $$ = $2; }
 	
 	  /* применение функций: f x */
-	  | expr expr { $$ = ExprNode::createFuncCall($1, $2); }
+	  | expr expr %prec APPLY_PREC { $$ = ExprNode::createFuncCall($1, $2); }
 
     /* --- арифметика --- */
     | expr PLUS expr     { $$ = ExprNode::createBinaryExpr("+", $1, $3); }

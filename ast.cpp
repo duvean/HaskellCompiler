@@ -215,8 +215,15 @@ DeclListNode* DeclListNode::addParamToList(DeclListNode* list, ExprNode* pattern
 
 std::string getExprDescription(ExprNode* node) {
     if (!node) return "NULL";
-    if (!node->name.empty()) return "VarRef(" + node->name + ")";
-    if (!node->value.empty()) return "Literal(" + node->value + ")";
+
+    // 1. FuncCall (проверяем function != nullptr)
+    if (node->function != nullptr) return "FuncCall(" + getExprDescription(node->function) + ")";
+
+    // 2. VarRef
+    if (node->type == EXPR_VAR) return "VarRef(" + node->name + ")";
+    
+    // 3. Literal
+    if (node->type == EXPR_LITERAL) return "Literal(" + node->value + ")";
     
     // Для более сложных узлов (например, BINARY, IF)
     if (!node->op.empty()) return "Binary(" + node->op + ")"; 
@@ -242,12 +249,16 @@ std::string listExprContent(ExprNode* list) {
 
 ExprNode* ExprNode::createLiteral(const std::string& val) {
     std::cout << "createLiteral(" << val << ")\n";
-    return new ExprNode(val);
+    ExprNode* node = new ExprNode(NodeType::EXPR_LITERAL);
+    node->value = val;
+    return node;
 }
 
 ExprNode* ExprNode::createVarRef(const std::string& name) {
     std::cout << "createVarRef(" << name << ")\n";
-    return new ExprNode(name);
+    ExprNode* node = new ExprNode(NodeType::EXPR_VAR);
+    node->name = name;
+    return node;
 }
 
 ExprNode* ExprNode::createBinaryExpr(const std::string& op, ExprNode* left, ExprNode* right) {
@@ -327,10 +338,12 @@ ExprNode* ExprNode::addExprToList(ExprNode* list, ExprNode* newExpr) {
 
 // ------------------------ Заглушки ---------------------------------
 ExprNode* ExprNode::createFuncCall(ExprNode* funcExpr, ExprNode* argExpr) {
-    std::cout << "createFuncCall\n";
-	// В реальной реализации здесь должно быть: 
-    // return new FuncCallNode(funcExpr, argExpr);
-    return nullptr;
+    ExprNode* res = new ExprNode("FuncCall");
+    res->function = funcExpr;
+    res->argument = argExpr;
+    std::cout << "createFuncCall. Func: " << getExprDescription(funcExpr) 
+              << ", Arg: " << getExprDescription(argExpr) << "\n";
+    return res;
 }
 
 ExprNode* ExprNode::createVarPattern(char* identifier) {

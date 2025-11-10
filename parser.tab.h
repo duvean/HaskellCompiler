@@ -145,7 +145,8 @@
      OPERATOR = 352,
      LBRACE = 353,
      RBRACE = 354,
-     DO_STMT_TERM = 355
+     APPLY_PREC = 355,
+     DO_STMT_TERM = 356
    };
 #endif
 
@@ -170,7 +171,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 174 "parser.tab.h"
+#line 175 "parser.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
