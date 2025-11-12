@@ -124,7 +124,8 @@ binding_list_opt:
     ;
 
 binding:
-      ID EQUALS expr SEMICOLON { $$ = DeclNode::createVarDecl($1, $3); }
+      ID EQUALS expr semicolon_opt { $$ = DeclNode::createVarDecl($1, $3); }
+      // если будут беды со свёрткой decl->decl_list поменять на SEMICOLON
     ;
 
 /* --- Объявление функции --- */
@@ -261,10 +262,12 @@ expr_list_tail:
 pattern:
 	  ID							                        { $$ = ExprNode::createVarPattern($1); } // Переменная или Wildcard (если ID = "_")
 	| DEC_LITERAL				                      { $$ = ExprNode::createLiteralPattern($1); }
-	| KW_TRUE					                        { $$ = ExprNode::createLiteralPattern("true"); }
+	| KW_TRUE					                        { $$ = ExprNode::createLiteralPattern("True"); }
+  | KW_FALSE					                      { $$ = ExprNode::createLiteralPattern("False"); }
 	| ID_CAP					                        { $$ = ExprNode::createConstructorPattern($1, nullptr); } // Конструктор без аргументов
-  | LEFT_PAREN RIGHT_PAREN                  { $$ = nullptr; }
+  | LEFT_PAREN RIGHT_PAREN                  { $$ = nullptr; } // Пустой кортеж
 	| LEFT_PAREN pattern_list RIGHT_PAREN		  { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
+  | LEFT_BRACKET RIGHT_BRACKET	            { $$ = nullptr; } // Пустой список
 	| LEFT_BRACKET pattern_list RIGHT_BRACKET	{ $$ = ExprNode::createListPattern($2); } // Образец списка
 	| ID_CAP pattern							            { $$ = ExprNode::createConstructorPattern($1, $2); } // Just x
 	| pattern COLON pattern				            { $$ = ExprNode::createConsPattern($1, $3); } // x : xs
@@ -291,8 +294,8 @@ case_branch_list_opt:
     ;
 
 case_branch_list:
-      case_branch
-    | case_branch_list SEMICOLON case_branch
+      case_branch SEMICOLON case_branch_list
+    | case_branch SEMICOLON
     ;
 
 case_branch:
@@ -314,10 +317,15 @@ do_stmt:
     | expr %prec DO_STMT_TERM    /* действие-выражение: reduce только если lookahead имеет НИЖ. приоритет */
     ;
 
+semicolon_opt:
+      SEMICOLON
+    | /* void */
+    ;
+
 %%
 
 void yyerror(const char *s) {
     extern int yylineno;
     extern char *yytext;
-    /* fprintf(stderr, "Parser error: %s at line %d, near token '%s'\n", s, yylineno, yytext); */
+    fprintf(stderr, "Parser error: %s at line %d, near token '%s'\n", s, yylineno, yytext);
 }
