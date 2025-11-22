@@ -105,8 +105,8 @@ void yyerror(const char *s);
 program: decl_list { root = ProgramNode::create($1); $$ = root; }
 
 decl_list:
-      decl_list decl { $$ = DeclListNode::addDecl($1, $2); }
-    | decl           { $$ = DeclListNode::create($1); }
+      decl_list decl semicolon_opt { $$ = DeclListNode::addDecl($1, $2); }
+    | decl semicolon_opt           { $$ = DeclListNode::create($1); }
     ;
 
 decl_list_opt:

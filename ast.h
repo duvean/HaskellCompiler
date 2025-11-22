@@ -7,6 +7,7 @@ enum NodeType {
     NODE_PROGRAM,
     DECL_VAR,
     DECL_FUNC,
+    DECL_FUNC_SIGN,
     DECL_DATA,
     DECL_CONSTRUCTOR,
     DECL_TYPE,
@@ -33,6 +34,7 @@ enum NodeType {
     EXPR_PATTERN_LIST,
     EXPR_PATTERN_CONS,
     EXPR_TYPE_PRIMITIVE,
+    EXPR_TYPE_LIST,
     EXPR_TYPE_CONSTRUCTOR,
     EXPR_TYPE_VAR,
     EXPR_TYPE_FUNCTION,
@@ -171,6 +173,7 @@ public:
 	static ExprNode* createPatternList(ExprNode* singlePattern);
 
     static ExprNode* createPrimitiveType(const std::string& name);
+    static ExprNode* createListType(ExprNode* elementType);
     static ExprNode* createTypeConstructor(char* name);
     static ExprNode* createTypeVar(char* name);
     static ExprNode* createFunctionType(ExprNode* argType, ExprNode* returnType);
