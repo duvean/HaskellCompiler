@@ -134,15 +134,21 @@ std::string ProgramNode::toDotString() const {
     ss << "    node [shape=box];\n";
     ss << "    " << nodeId << " [label=\"" << getDotLabel() << "\"];\n";
     
+    std::cerr << "--- DEBUG: ProgramNode::toDotString STARTED ---\n";
+
     for (size_t i = 0; i < decls.size(); ++i) {
         DeclNode* decl = decls[i];
         if (decl) {
             ss << "    " << nodeId << " -> " << decl->nodeId 
                << " [label=\"Decl #" << i + 1 << "\"];\n";
+            
+            std::cerr << "--- DEBUG: Attempting to process declaration " << i << " (ID: " << decl->nodeId << ") ---\n";
             ss << decl->toDotString(); 
+            std::cerr << "--- DEBUG: Successfully processed declaration " << i << " ---\n";
         }
     }
     ss << "}\n";
+    std::cerr << "--- DEBUG: ProgramNode::toDotString ENDED ---\n";
     return(ss.str());
 }
 
@@ -276,7 +282,9 @@ std::string DeclNode::toDotString() const {
     // 2. Связь с expr (правая часть '=')
     if (expr) {
         ss << "    " << nodeId << " -> " << expr->nodeId << " [label=\"Expr\"];\n";
+        std::cerr << "DEBUG DeclNode " << nodeId << ": Starting expr->toDotString()...\n";
         ss << expr->toDotString();
+        std::cerr << "DEBUG DeclNode " << nodeId << ": Finished expr->toDotString().\n";
     }
     
     // 3. Связь с typeExpr (сигнатура типа или список параметров)
@@ -455,6 +463,11 @@ ExprNode* ExprNode::createIfExpr(ExprNode* cond, ExprNode* t, ExprNode* f) {
     return node;
 }
 
+ExprNode* ExprNode::createArrayExpr() {
+    ExprNode* node = new ExprNode(NodeType::EXPR_ARRAY); 
+    return node;
+}
+
 ExprNode* ExprNode::createArrayExpr(ASTNode* elements) {
     ExprNode* node = new ExprNode(NodeType::EXPR_ARRAY);
     // Предполагаем, что elements — это ExprNode* (список элементов)
@@ -470,6 +483,11 @@ ExprNode* ExprNode::createArrayExpr(ASTNode* elements) {
     }
     
     std::cout << "createArrayExpr\n";
+    return node;
+}
+
+ExprNode* ExprNode::createTupleExpr() {
+    ExprNode* node = new ExprNode(NodeType::EXPR_TUPLE); 
     return node;
 }
 
@@ -619,6 +637,16 @@ ExprNode* ExprNode::createListPattern(ExprNode* patternList) {
     ExprNode* node = new ExprNode(NodeType::EXPR_PATTERN_LIST);
     node->left = patternList;
     std::cout << "createListPattern\n";
+    return node;
+}
+
+ExprNode* ExprNode::createTuplePattern() {
+    ExprNode* node = new ExprNode(NodeType::EXPR_PATTERN_TUPLE);
+    return node;
+}
+
+ExprNode* ExprNode::createListPattern() {
+    ExprNode* node = new ExprNode(NodeType::EXPR_PATTERN_LIST);
     return node;
 }
 

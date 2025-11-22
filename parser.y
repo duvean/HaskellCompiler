@@ -198,20 +198,20 @@ constr_list:
 
 basic_expr:
 	  DEC_LITERAL    { $$ = ExprNode::createLiteral($1); }
-    | HEX_LITERAL    { $$ = ExprNode::createLiteral($1); }
-    | OCT_LITERAL    { $$ = ExprNode::createLiteral($1); }
-    | FLOAT          { $$ = ExprNode::createLiteral($1); }
-    | KW_TRUE        { $$ = ExprNode::createLiteral("True"); }
-    | KW_FALSE       { $$ = ExprNode::createLiteral("False"); }
-	| CHAR_LITERAL   { $$ = ExprNode::createLiteral($1); }
+  | HEX_LITERAL    { $$ = ExprNode::createLiteral($1); }
+  | OCT_LITERAL    { $$ = ExprNode::createLiteral($1); }
+  | FLOAT          { $$ = ExprNode::createLiteral($1); }
+  | KW_TRUE        { $$ = ExprNode::createLiteral("True"); }
+  | KW_FALSE       { $$ = ExprNode::createLiteral("False"); }
+  | CHAR_LITERAL   { $$ = ExprNode::createLiteral($1); }
 	| STRING_LITERAL { $$ = ExprNode::createLiteral($1); }
-    | ID             { $$ = ExprNode::createVarRef($1); }
-    | ID_CAP         { $$ = ExprNode::createVarRef($1); }
-	| LEFT_PAREN compose_expr RIGHT_PAREN	              { $$ = $2; } // Группировка
-	| LEFT_PAREN tuple_list RIGHT_PAREN		      { $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
-	| LEFT_BRACKET arr_list RIGHT_BRACKET	      { $$ = ExprNode::createArrayExpr($2); } // Образец списка
-	| LEFT_PAREN RIGHT_PAREN                  		  { $$ = nullptr; } // Пустой кортеж
-	| LEFT_BRACKET RIGHT_BRACKET	                  { $$ = nullptr; } // Пустой список
+  | ID             { $$ = ExprNode::createVarRef($1); }
+  | ID_CAP         { $$ = ExprNode::createVarRef($1); }
+	| LEFT_PAREN compose_expr RIGHT_PAREN	{ $$ = $2; } // Группировка
+	| LEFT_PAREN tuple_list RIGHT_PAREN		{ $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
+	| LEFT_BRACKET arr_list RIGHT_BRACKET { $$ = ExprNode::createArrayExpr($2); } // Образец списка
+	| LEFT_PAREN RIGHT_PAREN              { $$ = ExprNode::createTupleExpr(); } // Пустой кортеж
+	| LEFT_BRACKET RIGHT_BRACKET	        { $$ = ExprNode::createArrayExpr(); } // Пустой список
 
 
 app_expr: basic_expr
@@ -311,6 +311,7 @@ expr: compose_expr
 
 tuple_list:
     cons_expr COMMA arr_list	   { $$ = ExprNode::addExprToList($3, $1); }
+    
 arr_list:
 	cons_expr COMMA arr_list 	   { $$ = ExprNode::addExprToList($3, $1); }
 	| cons_expr                    { $$ = ExprNode::createExprList($1); }
@@ -322,30 +323,34 @@ arr_list:
 
 /* --- Сопоставление с образцом (Patterns) --- */
 atomic_pattern:
-	  ID							                  { $$ = ExprNode::createVarPattern($1); } // Переменная или Wildcard (если ID = "_")
-	| DEC_LITERAL				                      { $$ = ExprNode::createLiteralPattern($1); }
-	| KW_TRUE					                      { $$ = ExprNode::createLiteralPattern("True"); }
-    | KW_FALSE					                      { $$ = ExprNode::createLiteralPattern("False"); }
-	| LEFT_PAREN RIGHT_PAREN                  		  { $$ = nullptr; } // Пустой кортеж
-	| LEFT_PAREN tuple_content RIGHT_PAREN		      { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
-	| LEFT_BRACKET RIGHT_BRACKET	                  { $$ = nullptr; } // Пустой список
-	| LEFT_BRACKET pattern_list RIGHT_BRACKET	      { $$ = ExprNode::createListPattern($2); } // Образец списка
-	| LEFT_PAREN pattern RIGHT_PAREN	              { $$ = $2; } // Группировка
+	  ID							                         { $$ = ExprNode::createVarPattern($1); }
+	| DEC_LITERAL				                       { $$ = ExprNode::createLiteralPattern($1); }
+	| KW_TRUE					                         { $$ = ExprNode::createLiteralPattern("True"); }
+  | KW_FALSE					                       { $$ = ExprNode::createLiteralPattern("False"); }
+	| LEFT_PAREN RIGHT_PAREN                   { $$ = ExprNode::createTuplePattern(); }   // Пустой кортеж
+	| LEFT_PAREN tuple_content RIGHT_PAREN		 { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
+	| LEFT_BRACKET RIGHT_BRACKET	             { $$ = ExprNode::createListPattern(); }    // Пустой список
+	| LEFT_BRACKET pattern_list RIGHT_BRACKET  { $$ = ExprNode::createListPattern($2); }  // Образец списка
+	| LEFT_PAREN pattern RIGHT_PAREN	         { $$ = $2; } // Группировка
 	;
+
 constructor_app:
 	  ID_CAP											{ $$ = ExprNode::createConstructorPattern($1, nullptr); }
 	| constructor_app atomic_pattern %prec APPLY_PREC	{ $$ = ExprNode::addArgumentToConstructor($1, $2); }
 	;
+
 pattern:
 	  constructor_app
 	| atomic_pattern
 	| pattern COLON pattern		{ $$ = ExprNode::createConsPattern($1, $3); }
 	;
+
 tuple_content:
     pattern COMMA pattern_list { $$ = ExprNode::addPatternToList($1, $3); }
+
 pattern_list:
-	pattern COMMA pattern_list { $$ = ExprNode::addPatternToList($1, $3); }
-	| pattern                  { $$ = ExprNode::createPatternList($1); }
+	  pattern COMMA pattern_list { $$ = ExprNode::addPatternToList($1, $3); }
+	| pattern                    { $$ = ExprNode::createPatternList($1); }
 	;
 
 
@@ -362,10 +367,8 @@ case_branch_list_opt:
     ;
 
 case_branch_list:
-      case_branch SEMICOLON 
-        { $$ = ExprNode::createCaseBranchList($1); } // БАЗОВЫЙ: Создает список из первой ветки
-    | case_branch_list case_branch SEMICOLON 
-        { $$ = ExprNode::addCaseBranchToList($1, $2); } // РЕКУРСИВНЫЙ: Добавляет $2 к списку $1
+      case_branch SEMICOLON                  { $$ = ExprNode::createCaseBranchList($1); }
+    | case_branch_list case_branch SEMICOLON { $$ = ExprNode::addCaseBranchToList($1, $2); }
     ;
 
 case_branch:

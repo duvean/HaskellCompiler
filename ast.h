@@ -144,8 +144,10 @@ public:
     static ExprNode* createVarRef(const std::string& name);
     static ExprNode* createBinaryExpr(const std::string& op, ExprNode* left, ExprNode* right);
     static ExprNode* createIfExpr(ExprNode* cond, ExprNode* t, ExprNode* f);
+    static ExprNode* createArrayExpr();
     static ExprNode* createArrayExpr(ASTNode* elements);
-    // (a, b, c)
+    // (a, b, c), ()
+    static ExprNode* createTupleExpr();
     static ExprNode* createTupleExpr(ASTNode* elements);
     // \x -> expr
     static ExprNode* createLambda(ExprNode* params, ExprNode* body);
@@ -168,6 +170,8 @@ public:
 	static ExprNode* addArgumentToConstructor(ExprNode* constructor, ExprNode* args);
 	static ExprNode* createTuplePattern(ExprNode* patternList);
 	static ExprNode* createListPattern(ExprNode* patternList);
+    static ExprNode* createTuplePattern();
+	static ExprNode* createListPattern();
 	static ExprNode* createConsPattern(ExprNode* headPattern, ExprNode* tailPattern);
 	static ExprNode* addPatternToList(ExprNode* newPatternPattern, ExprNode* existingListPattern);
 	static ExprNode* createPatternList(ExprNode* singlePattern);
