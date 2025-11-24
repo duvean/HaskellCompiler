@@ -609,7 +609,7 @@ ExprNode* ExprNode::createFuncCall(ExprNode* funcExpr, ExprNode* argExpr) {
     res->arguments.push_back(argExpr);
     res->name = getExprDescription(res);
 
-    std::cout << "createFuncCall. New Call (Name/Label): " << res->name << "\n";
+    std::cout << "createFuncCall. New Call (Name): " << res->name << "\n";
 
     return(res);
 }
@@ -826,15 +826,17 @@ std::string ExprNode::toDotString() const {
     
     // C. Вызовы функций
     if (function) {
+        // Связь с функцией (предыдущим вызовом или именем функции)
         ss << "    " << nodeId << " -> " << function->nodeId << " [label=\"Function\"];\n";
         ss << function->toDotString();
+
+        if (!arguments.empty() && arguments[0]) {
+            ExprNode* arg = arguments[0];
+            ss << "    " << nodeId << " -> " << arg->nodeId << " [label=\"Argument\"];\n";
+            ss << arg->toDotString();
+        }
     }
-	/*
-    if (argument) {
-        ss << "    " << nodeId << " -> " << argument->nodeId << " [label=\"Argument\"];\n";
-        ss << argument->toDotString();
-    }
-    */
+
     // D. Списки (Array, Tuple, Case Branches, Do block, ExprList)
     for (size_t i = 0; i < block.size(); ++i) {
         ExprNode* child = block[i];
