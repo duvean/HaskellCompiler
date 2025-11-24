@@ -119,8 +119,8 @@ decl_block:
     ;
 
 opt_where:
-      KW_WHERE decl_block
-    | /* void */
+      KW_WHERE decl_block { $$ = $2; }
+    | /* void */          { $$ = nullptr; }
     ;
 
 decl:
@@ -185,47 +185,40 @@ constr_list:
 
 
 
-
-
-
-
-
-
-
-
-
 /* --- Выражения --- */
 
 basic_expr:
-	  DEC_LITERAL    { $$ = ExprNode::createLiteral($1); }
+	DEC_LITERAL    { $$ = ExprNode::createLiteral($1); }
   | HEX_LITERAL    { $$ = ExprNode::createLiteral($1); }
   | OCT_LITERAL    { $$ = ExprNode::createLiteral($1); }
   | FLOAT          { $$ = ExprNode::createLiteral($1); }
   | KW_TRUE        { $$ = ExprNode::createLiteral("True"); }
   | KW_FALSE       { $$ = ExprNode::createLiteral("False"); }
   | CHAR_LITERAL   { $$ = ExprNode::createLiteral($1); }
-	| STRING_LITERAL { $$ = ExprNode::createLiteral($1); }
+  | STRING_LITERAL { $$ = ExprNode::createLiteral($1); }
   | ID             { $$ = ExprNode::createVarRef($1); }
   | ID_CAP         { $$ = ExprNode::createVarRef($1); }
-	| LEFT_PAREN compose_expr RIGHT_PAREN	{ $$ = $2; } // Группировка
-	| LEFT_PAREN tuple_list RIGHT_PAREN		{ $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
-	| LEFT_BRACKET arr_list RIGHT_BRACKET { $$ = ExprNode::createArrayExpr($2); } // Образец списка
-	| LEFT_PAREN RIGHT_PAREN              { $$ = ExprNode::createTupleExpr(); } // Пустой кортеж
-	| LEFT_BRACKET RIGHT_BRACKET	        { $$ = ExprNode::createArrayExpr(); } // Пустой список
+  | LEFT_PAREN compose_expr RIGHT_PAREN	{ $$ = $2; } // Группировка
+  | LEFT_PAREN tuple_list RIGHT_PAREN	{ $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
+  | LEFT_BRACKET arr_list RIGHT_BRACKET { $$ = ExprNode::createArrayExpr($2); } // Образец списка
+  | LEFT_PAREN RIGHT_PAREN              { $$ = ExprNode::createTupleExpr(); }   // Пустой кортеж
+  | LEFT_BRACKET RIGHT_BRACKET	        { $$ = ExprNode::createArrayExpr(); }   // Пустой список
 
 
-app_expr: basic_expr
-        | app_expr basic_expr %prec APPLY_PREC { $$ = ExprNode::createFuncCall($1, $2); }
+app_expr: 
+    basic_expr
+  | app_expr basic_expr %prec APPLY_PREC { $$ = ExprNode::createFuncCall($1, $2); }
 ;
 
 /*
  * Уровень 10: Операторы степени (Право-ассоциативны)
  * Использует app_expr в правой части
  */
-pow_expr: app_expr
-        | app_expr CARET pow_expr           { $$ = ExprNode::createBinaryExpr("^", $1, $3); }
-        | app_expr DOUBLE_ASTERISK pow_expr { $$ = ExprNode::createBinaryExpr("**", $1, $3); }
-        | app_expr DOUBLE_CARET pow_expr    { $$ = ExprNode::createBinaryExpr("^^", $1, $3); }
+pow_expr: 
+    app_expr
+  | app_expr CARET pow_expr           { $$ = ExprNode::createBinaryExpr("^", $1, $3); }
+  | app_expr DOUBLE_ASTERISK pow_expr { $$ = ExprNode::createBinaryExpr("**", $1, $3); }
+  | app_expr DOUBLE_CARET pow_expr    { $$ = ExprNode::createBinaryExpr("^^", $1, $3); }
 ;
 
 /*

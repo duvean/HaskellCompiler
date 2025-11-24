@@ -67,7 +67,9 @@ public:
     std::vector<std::string> params;       // Список имен параметров для func_definition
     ASTNode* typeExpr = nullptr;           // Для func_type_signature и type_decl
     ASTNode* paramsList = nullptr;         // Для параметров в объявлении функции
-    ASTNode* whereBlock = nullptr;         // Для func_definition
+    ASTNode* letBlock = nullptr;           // Локлаьные объявления let
+    ASTNode* whereBlock = nullptr;         // Локлаьные объявления where
+    ASTNode* enumData = nullptr;           // data enumLike = A | B | C
 
     static DeclNode* createVarDecl(const std::string& name, ExprNode* expr);
     static DeclNode* createFuncDef(const std::string& name, 

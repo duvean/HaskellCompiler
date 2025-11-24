@@ -1725,6 +1725,20 @@ yyreduce:
     { (yyval.decl_list) = (yyvsp[(2) - (3)].decl_list); ;}
     break;
 
+  case 8:
+
+/* Line 1455 of yacc.c  */
+#line 122 "parser.y"
+    { (yyval.decl_list) = (yyvsp[(2) - (2)].decl_list); ;}
+    break;
+
+  case 9:
+
+/* Line 1455 of yacc.c  */
+#line 123 "parser.y"
+    { (yyval.decl_list) = nullptr; ;}
+    break;
+
   case 15:
 
 /* Line 1455 of yacc.c  */
@@ -2262,20 +2276,6 @@ yyreduce:
 /* Line 1455 of yacc.c  */
 #line 339 "parser.y"
     { (yyval.expr) = ExprNode::addArgumentToConstructor((yyvsp[(1) - (2)].expr), (yyvsp[(2) - (2)].expr)); ;}
-    break;
-
-  case 102:
-
-/* Line 1455 of yacc.c  */
-#line 343 "parser.y"
-    { (yyval.expr) = (yyvsp[(1) - (1)].expr); ;}
-    break;
-
-  case 103:
-
-/* Line 1455 of yacc.c  */
-#line 344 "parser.y"
-    { (yyval.expr) = (yyvsp[(1) - (1)].expr); ;}
     break;
 
   case 104:
