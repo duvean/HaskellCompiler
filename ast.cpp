@@ -38,7 +38,7 @@ std::string nodeTypeToString(NodeType type) {
         case EXPR_LAMBDA:               return "EXPR_LAMBDA";
         case EXPR_CASE:                 return "EXPR_CASE_OF";
         case EXPR_LETIN:                return "EXPR_LET_IN";
-        case EXPR_DO:                   return "EXPR_DO_BLOCK";
+        case EXPR_DO_BLOCK:             return "EXPR_DO_BLOCK";
         case EXPR_RETURN:               return "EXPR_RETURN";
         case EXPR_LIST:                 return "EXPR_LIST";
         case EXPR_LET_IN:               return "EXPR_LET_IN";
@@ -548,21 +548,10 @@ ExprNode* ExprNode::createLetInExpr(ASTNode* decls, ExprNode* expr) {
     return node;
 }
 
-ExprNode* ExprNode::createDoExpr(ASTNode* block) {
-    ExprNode* node = new ExprNode(NodeType::EXPR_DO);
-    
-    // Блок DO-выражений (binds/exprs) лучше всего хранить в `block`.
-    // Предполагаем, что входящий ASTNode* block — это ExprNode* типа EXPR_LIST.
-    ExprNode* blockList = static_cast<ExprNode*>(block);
-    
-    if (blockList && blockList->type == NodeType::EXPR_LIST) {
-        node->block = blockList->block; // Копируем список выражений/связываний
-    } else {
-        node->left = blockList; // Если это не EXPR_LIST, сохраняем как отдельный узел
-    }
-    
-    std::cout << "createDoExpr -> Block: " 
-              << (blockList ? "present" : "NULL") << "\n";
+ExprNode* ExprNode::createDoExpr(DeclListNode* decls) {
+    ExprNode* node = new ExprNode(NodeType::EXPR_DO_BLOCK);
+    node->decls = decls; 
+    std::cout << "createDoExpr: created generic DO block, decls stored in ExprNode::decls.\n";
     return node;
 }
 
@@ -835,6 +824,12 @@ std::string ExprNode::toDotString() const {
             ss << "    " << nodeId << " -> " << arg->nodeId << " [label=\"Argument\"];\n";
             ss << arg->toDotString();
         }
+    }
+
+    if (decls) {
+        // Связь с функцией (предыдущим вызовом или именем функции)
+        ss << "    " << nodeId << " -> " << decls->nodeId << " [label=\"Do Block\"];\n";
+        ss << decls->toDotString();
     }
 
     // D. Списки (Array, Tuple, Case Branches, Do block, ExprList)

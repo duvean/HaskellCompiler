@@ -268,7 +268,7 @@ expr: compose_expr
     | let_block KW_IN expr %prec KW_IN { $$ = ExprNode::createLetInExpr($1, $3); }
 
     /* do-нотация */
-    | KW_DO do_block { $$ = ExprNode::createDoExpr($2); }
+    | KW_DO decl_block { $$ = ExprNode::createDoExpr($2); }
 
     /* return */
     | KW_RETURN expr %prec KW_RETURN { $$ = ExprNode::createReturnExpr($2); }

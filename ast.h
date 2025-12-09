@@ -23,7 +23,7 @@ enum NodeType {
     EXPR_LAMBDA,
     EXPR_CASE,
     EXPR_LETIN,
-    EXPR_DO,
+    EXPR_DO_BLOCK,
     EXPR_RETURN,
     EXPR_LIST,
     EXPR_LET_IN,
@@ -141,6 +141,7 @@ public:
     ExprNode* expr_true = nullptr;
     ExprNode* expr_false = nullptr;
     ExprNode* function = nullptr;
+    DeclListNode* decls = nullptr;
 
     static ExprNode* createLiteral(const std::string& val);
     static ExprNode* createVarRef(const std::string& name);
@@ -158,7 +159,7 @@ public:
     // let decls in expr
     static ExprNode* createLetInExpr(ASTNode* decls, ExprNode* expr);
     // do { ... }
-    static ExprNode* createDoExpr(ASTNode* block);
+    static ExprNode* createDoExpr(DeclListNode* decls);
     // return expr
     static ExprNode* createReturnExpr(ExprNode* expr);
 
