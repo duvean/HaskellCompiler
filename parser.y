@@ -29,13 +29,12 @@ void yyerror(const char *s);
 }
 
 %type <program> program
-%type <decl> decl func_signature func_definition let_block data_decl binding
+%type <decl> decl func_signature func_definition let_block data_decl binding do_stmt
 %type <decl_list> decl_list decl_list_opt binding_list binding_list_opt
-%type <decl_list> opt_where decl_block constr_list param_list
+%type <decl_list> opt_where decl_block constr_list param_list do_block do_stmt_list
 %type <expr> expr basic_expr type_expr app_expr pow_expr mult_expr add_expr comp_expr log_and_expr log_or_expr cons_expr compose_expr
 %type <expr> tuple_list arr_list
 %type <expr> case_branch_list_opt case_branch_list case_branch
-%type <expr> do_block do_stmt_list do_stmt
 %type <expr> pattern pattern_list atomic_pattern constructor_app tuple_content
 
 /* ==== Терминалы ==== */
@@ -112,8 +111,8 @@ opt_where:
     ;
 
 decl:
-      func_signature
-    | func_definition
+      func_definition
+    | func_signature
     | let_block
     | data_decl
     | binding
@@ -136,7 +135,6 @@ binding_list_opt:
 
 binding:
       ID EQUALS expr semicolon_opt { $$ = DeclNode::createVarDecl($1, $3); }
-    | ID LEFT_ARROW expr semicolon_opt { $$ = DeclNode::createMonadicBind($1, $3); }
     ;
 
 /* --- Объявление функции --- */
@@ -175,7 +173,9 @@ constr_list:
 
 /* --- Выражения --- */
 basic_expr:
-      DEC_LITERAL    { $$ = ExprNode::createLiteral($1); }
+      ID             { $$ = ExprNode::createVarRef($1); }
+    | ID_CAP         { $$ = ExprNode::createVarRef($1); }
+    | DEC_LITERAL    { $$ = ExprNode::createLiteral($1); }
     | HEX_LITERAL    { $$ = ExprNode::createLiteral($1); }
     | OCT_LITERAL    { $$ = ExprNode::createLiteral($1); }
     | FLOAT          { $$ = ExprNode::createLiteral($1); }
@@ -183,17 +183,15 @@ basic_expr:
     | KW_FALSE       { $$ = ExprNode::createLiteral("False"); }
     | CHAR_LITERAL   { $$ = ExprNode::createLiteral($1); }
     | STRING_LITERAL { $$ = ExprNode::createLiteral($1); }
-    | ID             { $$ = ExprNode::createVarRef($1); }
-    | ID_CAP         { $$ = ExprNode::createVarRef($1); }
     | LEFT_PAREN compose_expr RIGHT_PAREN	{ $$ = $2; } // Группировка
-    | LEFT_PAREN tuple_list RIGHT_PAREN	{ $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
+    | LEFT_PAREN tuple_list RIGHT_PAREN	  { $$ = ExprNode::createTupleExpr($2); } // Образец кортежа
     | LEFT_BRACKET arr_list RIGHT_BRACKET { $$ = ExprNode::createArrayExpr($2); } // Образец списка
     | LEFT_PAREN RIGHT_PAREN              { $$ = ExprNode::createTupleExpr(); }   // Пустой кортеж
     | LEFT_BRACKET RIGHT_BRACKET	        { $$ = ExprNode::createArrayExpr(); }   // Пустой список
 
 app_expr: 
       basic_expr
-    | app_expr basic_expr %prec APPLY_PREC { $$ = ExprNode::createFuncCall($1, $2); }
+    | app_expr basic_expr { $$ = ExprNode::createFuncCall($1, $2); }
     ;
 
 /* Уровень 10: Операторы степени (Право-ассоциативны) */
@@ -268,7 +266,7 @@ expr: compose_expr
     | let_block KW_IN expr %prec KW_IN { $$ = ExprNode::createLetInExpr($1, $3); }
 
     /* do-нотация */
-    | KW_DO decl_block { $$ = ExprNode::createDoExpr($2); }
+    | KW_DO do_block { $$ = ExprNode::createDoExpr($2); }
 
     /* return */
     | KW_RETURN expr %prec KW_RETURN { $$ = ExprNode::createReturnExpr($2); }
@@ -286,15 +284,15 @@ arr_list:
 
 /* --- Сопоставление с образцом (Patterns) --- */
 atomic_pattern:
-	  ID							           { $$ = ExprNode::createVarPattern($1); }
-	| DEC_LITERAL				               { $$ = ExprNode::createLiteralPattern($1); }
-	| KW_TRUE					               { $$ = ExprNode::createLiteralPattern("True"); }
-    | KW_FALSE					               { $$ = ExprNode::createLiteralPattern("False"); }
-	| LEFT_PAREN RIGHT_PAREN                   { $$ = ExprNode::createTuplePattern(); }   // Пустой кортеж
-	| LEFT_PAREN tuple_content RIGHT_PAREN	   { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
-	| LEFT_BRACKET RIGHT_BRACKET	           { $$ = ExprNode::createListPattern(); }    // Пустой список
-	| LEFT_BRACKET pattern_list RIGHT_BRACKET  { $$ = ExprNode::createListPattern($2); }  // Образец списка
-	| LEFT_PAREN pattern RIGHT_PAREN	       { $$ = $2; } // Группировка
+	  ID 					                            { $$ = ExprNode::createVarPattern($1); }
+	| DEC_LITERAL				                      { $$ = ExprNode::createLiteralPattern($1); }
+	| KW_TRUE					                        { $$ = ExprNode::createLiteralPattern("True"); }
+  | KW_FALSE					                      { $$ = ExprNode::createLiteralPattern("False"); }
+	| LEFT_PAREN RIGHT_PAREN                  { $$ = ExprNode::createTuplePattern(); }   // Пустой кортеж
+	| LEFT_PAREN tuple_content RIGHT_PAREN	  { $$ = ExprNode::createTuplePattern($2); } // Образец кортежа
+	| LEFT_BRACKET RIGHT_BRACKET	            { $$ = ExprNode::createListPattern(); }    // Пустой список
+	| LEFT_BRACKET pattern_list RIGHT_BRACKET { $$ = ExprNode::createListPattern($2); }  // Образец списка
+	| LEFT_PAREN pattern RIGHT_PAREN	        { $$ = $2; } // Группировка
 	;
 
 constructor_app:
@@ -340,17 +338,18 @@ case_branch:
 
 /* --- do-блок --- */
 do_block:
-      LEFT_BRACE do_stmt_list RIGHT_BRACE
+      LEFT_BRACE do_stmt_list RIGHT_BRACE { $$ = $2; }
     ;
 
 do_stmt_list:
-      do_stmt_list SEMICOLON do_stmt
-    | do_stmt
+      do_stmt_list semicolon_opt do_stmt { $$ = DeclListNode::addDecl($1, $3); }
+    | do_stmt                        { $$ = DeclListNode::create($1); }
     ;
 
 do_stmt:
-      expr LEFT_ARROW expr       /* x <- action  — однозначно */
-    | expr %prec DO_STMT_TERM    /* действие-выражение: reduce только если lookahead имеет НИЖ. приоритет */
+      ID LEFT_ARROW expr SEMICOLON { $$ = DeclNode::createMonadicBind($1, $3); } // Монадическая привязка (Bind)
+    | let_block                        { $$ = $1; }                                  // Локальная привязка (Let)
+    | expr               SEMICOLON { $$ = DeclNode::createAction($1); }          // Действие (Action)
     ;
 
 semicolon_opt:

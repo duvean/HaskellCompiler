@@ -26,6 +26,7 @@ std::string nodeTypeToString(NodeType type) {
         case DECL_CONSTRUCTOR:          return "DATA_CONSTRUCTOR";
         case DECL_LIST:                 return "DECL_LIST";
         case DECL_MONADIC_BIND:         return "MONADIC_BIND";
+        case DECL_ACTION:               return "ACTION"; // Чистое выражение (напр., putStrLn)
         case DECL_BLOCK:                return "DECL_BLOCK"; // Блок объявлений (напр., 'where' или 'let')
         
         // --- Выражения (Expressions) ---
@@ -178,6 +179,13 @@ DeclNode* DeclNode::createMonadicBind(const std::string& name, ExprNode* expr) {
     
     std::cout << "createMonadicBind(" << name << ") -> Expression: " 
               << (expr ? "present" : "NULL") << "\n";
+    return node;
+}
+
+DeclNode* DeclNode::createAction(ExprNode* expr) {
+    DeclNode* node = new DeclNode(NodeType::DECL_ACTION); 
+    node->expr = expr; 
+    std::cout << "createAction: wrapped expression/action into a declaration.\n";
     return node;
 }
 
