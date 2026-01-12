@@ -10,12 +10,20 @@ struct LocalVariable {
     SemanticType type;
 };
 
+struct FunctionSignature {
+    std::vector<SemanticType> paramTypes;
+    SemanticType returnType;
+};
+
 class SemanticAnalyzer {
 private:
     ConstantPool& constPool;
     
     // Таблица символов: Имя переменной -> Информаця
     std::map<std::string, LocalVariable> symbolTable;
+    // Хранилище сигнатур: ИмяФункции -> СписокТипов
+    std::map<std::string, FunctionSignature> functionSignatures;
+
     int nextLocalIndex = 1;
 
 public:
@@ -28,6 +36,7 @@ private:
     void analyzeExpr(ExprNode* node);
 
     std::string makeMethodDescriptor(DeclNode* funcNode);
-    
+    void collectTypes(ASTNode* node, std::vector<SemanticType>& types);
+
     ExprNode* createCastNode(ExprNode* target, SemanticType toType);
 };

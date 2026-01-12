@@ -19,17 +19,17 @@ void SemanticAnalyzer::analyzeDeclList(DeclListNode* list) {
 void SemanticAnalyzer::analyzeDecl(DeclNode* node) {
     if (!node) return;
 
-    // 1. Обработка переменных (let a = 1)
+    // 1. Обработка переменных
     if (node->type == DECL_VAR) {
         if (node->expr) {
-            analyzeExpr(node->expr); // 1. Анализируем правую часть (1.5)
+            analyzeExpr(node->expr);
             
             // 2. Регистрируем переменную
             LocalVariable varInfo;
             varInfo.index = nextLocalIndex++;
             varInfo.type = node->expr->inferredType; // Тип берем из правой части
             
-            symbolTable[node->name] = varInfo; // Добавляем в таблицу (a -> Float)
+            symbolTable[node->name] = varInfo; // Добавляем в таблицу
             
             // 3. Атрибутируем узел
             node->localVarIndex = varInfo.index;
@@ -40,33 +40,101 @@ void SemanticAnalyzer::analyzeDecl(DeclNode* node) {
                       << " type=" << typeToString(varInfo.type) << "\n";
         }
     }
-    // 2. Обработка функций (main = ...)
-    else if (node->type == DECL_FUNC) {
-        std::cout << "[Semantic] Entering function: " << node->name << "\n";
+    // 2. Обработка функций
+    else if (node->type == DECL_FUNC_SIGN) {
+        // Обработка func :: Int -> Float
+        FunctionSignature sig;
+        std::vector<SemanticType> allTypes;
+        collectTypes(node->typeExpr, allTypes);
 
-        // A. Сначала обрабатываем where-блок, если он есть
-        // Переменные из where должны попасть в таблицу ДО анализа тела функции
-        if (node->whereBlock) {
-            DeclListNode* whereList = dynamic_cast<DeclListNode*>(node->whereBlock);
-            if (whereList) {
-                analyzeDeclList(whereList);
-            } else {
-                // Если вдруг это не список, а одиночный DeclNode (зависит от парсера)
-                DeclNode* whereDecl = dynamic_cast<DeclNode*>(node->whereBlock);
-                if (whereDecl) analyzeDecl(whereDecl);
-            }
-        }
-
-        // B. Анализируем тело функции (a + b)
-        if (node->expr) {
-            analyzeExpr(node->expr);
-            // Тип функции выводится из типа её тела
-            node->inferredType = node->expr->inferredType; 
+        if (!allTypes.empty()) {
+            sig.returnType = allTypes.back(); // Последний тип — возвращаемое значение
+            allTypes.pop_back();              // Остальное — аргументы
+            sig.paramTypes = allTypes;
+            functionSignatures[node->name] = sig;
             
-            std::cout << "[Semantic] Function '" << node->name 
-                      << "' return type: " << typeToString(node->inferredType) << "\n";
+            std::cout << "[Semantic] Registered signature for '" << node->name << "'\n";
         }
     }
+
+    else if (node->type == DECL_FUNC) {
+        std::cout << "[Semantic] Entering function: " << node->name << "\n";
+        symbolTable.clear();
+        nextLocalIndex = 0; 
+
+        if (functionSignatures.find(node->name) == functionSignatures.end()) {
+            std::cerr << "[Error] Function '" << node->name << "' must have a signature!\n";
+            return;
+        }
+        
+        FunctionSignature& sig = functionSignatures[node->name];
+
+        // --- НОВОЕ: Извлекаем имена из paramsList ---
+        std::vector<std::string> paramNames;
+        if (node->paramsList) {
+            DeclListNode* pList = dynamic_cast<DeclListNode*>(node->paramsList);
+            if (pList) {
+                for (auto* paramDecl : pList->decls) {
+                    // В вашем createParameter(ExprNode* patternNode) имя, 
+                    // скорее всего, лежит в patternNode->name или самом paramDecl->name
+                    // Предположим, что имя параметра сохранено в paramDecl->name
+                    if (!paramDecl->name.empty()) {
+                        paramNames.push_back(paramDecl->name);
+                    }
+                }
+            }
+        } else {
+            // Если paramsList пуст, используем вектор строк (на случай, если парсер пишет туда)
+            paramNames = node->params;
+        }
+
+        if (paramNames.size() != sig.paramTypes.size()) {
+            std::cerr << "[Error] Parameter count mismatch in '" << node->name << "'. "
+                    << "Expected " << sig.paramTypes.size() << ", but found " << paramNames.size() << "\n";
+            return;
+        }
+
+        for (size_t i = 0; i < paramNames.size(); ++i) {
+            LocalVariable var;
+            var.index = nextLocalIndex++;
+            var.type = sig.paramTypes[i];
+            symbolTable[paramNames[i]] = var;
+            
+            std::cout << "[Semantic] Param '" << paramNames[i] 
+                    << "' assigned to LocalVar #" << var.index 
+                    << " (" << typeToString(var.type) << ")\n";
+        }
+
+        // 3. Анализируем whereBlock (если есть)
+        if (node->whereBlock) {
+            analyzeDeclList(dynamic_cast<DeclListNode*>(node->whereBlock));
+        }
+
+        // 4. Анализируем тело функции
+        if (node->expr) {
+            analyzeExpr(node->expr);
+            
+            // Проверка: совпадает ли тип выражения с объявленным в сигнатуре?
+            if (node->expr->inferredType != sig.returnType) {
+                 // Здесь можно вставить авто-кастинг для return, если нужно
+                 std::cout << "[Warning] Return type mismatch in '" << node->name << "'\n";
+            }
+            node->inferredType = sig.returnType;
+        }
+
+        // 5. Constant Pool (Имя и Дескриптор)
+        int nameIdx = constPool.addUtf8(node->name);
+        
+        // Генерируем дескриптор на основе сигнатуры: (IF)F
+        std::string desc = "(";
+        for (auto t : sig.paramTypes) desc += getJvmDescriptor(t);
+        desc += ")" + getJvmDescriptor(sig.returnType);
+        
+        int descIdx = constPool.addUtf8(desc);
+        node->constPoolIndex = nameIdx;
+    }
+
+
     // 3. Обработка Let-блоков (если они приходят как отдельный DeclNode)
     else if (node->type == DECL_BLOCK) {
          // Если letBlock хранит внутри DeclListNode
@@ -156,6 +224,22 @@ std::string SemanticAnalyzer::makeMethodDescriptor(DeclNode* funcNode) {
     // И возвращаем тип, который мы вывели (inferredType)
     std::string retDesc = getJvmDescriptor(funcNode->inferredType); 
     return "()" + retDesc;
+}
+
+void SemanticAnalyzer::collectTypes(ASTNode* node, std::vector<SemanticType>& types) {
+    if (!node) return;
+    ExprNode* expr = dynamic_cast<ExprNode*>(node);
+    if (!expr) return;
+
+    if (expr->type == EXPR_TYPE_FUNCTION) {
+        // Узел вида: ArgType -> ReturnType
+        collectTypes(expr->left, types);  // Рекурсивно берем левую часть
+        collectTypes(expr->right, types); // Рекурсивно берем правую часть
+    } else if (expr->type == EXPR_TYPE_PRIMITIVE) {
+        if (expr->value == "Int") types.push_back(SemanticType::Int);
+        else if (expr->value == "Float") types.push_back(SemanticType::Float);
+        // ... другие типы
+    }
 }
 
 // Создание узла кастинга. Оборачиваем старый узел в новый.

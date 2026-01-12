@@ -263,18 +263,18 @@ DeclNode* DeclNode::createLetBlock(DeclListNode* declList) {
 }
 
 DeclNode* DeclNode::createParameter(ExprNode* patternNode) {
-    // Параметр — это объявление, где имя может быть извлечено из паттерна.
     DeclNode* node = new DeclNode(NodeType::DECL_VAR);
-    
-    // Храним паттерн в поле expr.
     node->expr = patternNode;
     
-    // NOTE: Если паттерн является простым ID, мы можем извлечь имя для node->name:
-    // if (patternNode && patternNode->type == NodeType::EXPR_PATTERN_VAR) {
-    //     node->name = patternNode->name;
-    // }
+    if (patternNode) {
+        if (patternNode->type == NodeType::EXPR_PATTERN_VAR || 
+            patternNode->type == NodeType::EXPR_VAR) {
+            
+            node->name = patternNode->name;
+        }
+    }
     
-    std::cout << "createParameter: created DeclNode for parameter.\n";
+    std::cout << "createParameter: created DeclNode for parameter '" << node->name << "'.\n";
     return node;
 }
 
@@ -859,7 +859,7 @@ std::string ExprNode::toDotString() const {
         ss << "node" << nodeId << " -> node" << left->nodeId << ";\n";
         ss << left->toDotString();
     }
-    
+
     if (decls) {
         // Связь с функцией (предыдущим вызовом или именем функции)
         ss << "    " << nodeId << " -> " << decls->nodeId << " [label=\"Do Block\"];\n";
