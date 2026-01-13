@@ -34,6 +34,7 @@ private:
     void analyzeDeclList(DeclListNode* list);
     void analyzeDecl(DeclNode* node);
     void analyzeExpr(ExprNode* node);
+    void analyzePattern(ExprNode* pattern, SemanticType type, int sourceLocalIndex);
 
     std::string makeMethodDescriptor(DeclNode* funcNode);
     void collectTypes(ASTNode* node, std::vector<SemanticType>& types);

@@ -146,7 +146,7 @@ public:
     std::string name;     // переменная
     std::vector<ExprNode*> block;  // для expr_list
 	std::vector<ExprNode*> arguments;
-	
+    
     ExprNode* left = nullptr;
     ExprNode* right = nullptr;
     ExprNode* cond = nullptr;
@@ -154,7 +154,8 @@ public:
     ExprNode* expr_false = nullptr;
     ExprNode* function = nullptr;
     DeclListNode* decls = nullptr;
-
+    bool isFunctionRef = false;
+    
     static ExprNode* createLiteral(const std::string& val);
     static ExprNode* createVarRef(const std::string& name);
     static ExprNode* createBinaryExpr(const std::string& op, ExprNode* left, ExprNode* right);
