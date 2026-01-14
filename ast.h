@@ -194,6 +194,7 @@ public:
 	static ExprNode* createPatternList(ExprNode* singlePattern);
 
     static ExprNode* createPrimitiveType(const std::string& name);
+    static ExprNode* createUnitType();
     static ExprNode* createListType(ExprNode* elementType);
     static ExprNode* createTypeConstructor(char* name);
     static ExprNode* createTypeVar(char* name);

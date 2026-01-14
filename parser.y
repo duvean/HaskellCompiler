@@ -154,6 +154,7 @@ type_expr:
     | KW_BOOL                 { $$ = ExprNode::createPrimitiveType("Bool"); }
     | ID_CAP                  { $$ = ExprNode::createTypeConstructor($1); } // Maybe, List
     | ID                      { $$ = ExprNode::createTypeVar($1); } // a, b (переменная типа)
+    | LEFT_PAREN RIGHT_PAREN               { $$ = ExprNode::createUnitType(); } // Пустой кортеж аргументов (для Void функций)
     | type_expr RIGHT_ARROW type_expr      { $$ = ExprNode::createFunctionType($1, $3); } // Функциональный тип (->)
     | LEFT_PAREN type_expr RIGHT_PAREN     { $$ = $2; } // Группировка
     | LEFT_BRACKET type_expr RIGHT_BRACKET { $$ = ExprNode::createListType($2); }

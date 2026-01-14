@@ -725,6 +725,13 @@ ExprNode* ExprNode::createListType(ExprNode* elementType) {
     return node;
 }
 
+ExprNode* ExprNode::createUnitType() {
+    ExprNode* node = new ExprNode(NodeType::EXPR_TYPE_PRIMITIVE);
+    node->value = "()";
+    std::cout << "createUnitType(())\n";
+    return node;
+}
+
 // Конструктор типа (ID_CAP, напр., Maybe, List)
 ExprNode* ExprNode::createTypeConstructor(char* name) {
     ExprNode* node = new ExprNode(NodeType::EXPR_TYPE_CONSTRUCTOR);
