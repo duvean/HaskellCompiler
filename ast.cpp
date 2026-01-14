@@ -810,6 +810,12 @@ std::string ExprNode::getDotLabel() const {
     if (type == EXPR_CASTING)
         ss << "\\n(Implicit Cast)";
 
+    if (isBuiltinFunciton) {
+        ss << "\\n[BUILTIN]";
+    } else if (isFunctionRef) {
+        ss << "\\n[USER_FUNC]";
+    }
+
     return ss.str();
 }
 

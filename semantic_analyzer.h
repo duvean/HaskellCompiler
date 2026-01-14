@@ -19,18 +19,19 @@ class SemanticAnalyzer {
 private:
     ConstantPool& constPool;
     
-    // Таблица символов: Имя переменной -> Информаця
     std::map<std::string, LocalVariable> symbolTable;
-    // Хранилище сигнатур: ИмяФункции -> СписокТипов
     std::map<std::string, FunctionSignature> functionSignatures;
+    std::map<std::string, FunctionSignature> builtinSignatures;
 
     int nextLocalIndex = 1;
 
 public:
-    SemanticAnalyzer(ConstantPool& cp) : constPool(cp) {}
+    SemanticAnalyzer(ConstantPool& cp) : constPool(cp) { initBuiltins(); }
     void analyze(ProgramNode* root);
 
 private:
+    void initBuiltins();
+
     void analyzeDeclList(DeclListNode* list);
     void analyzeDecl(DeclNode* node);
     void analyzeExpr(ExprNode* node);
@@ -38,6 +39,6 @@ private:
 
     std::string makeMethodDescriptor(DeclNode* funcNode);
     void collectTypes(ASTNode* node, std::vector<SemanticType*>& types);
-
+    
     ExprNode* createCastNode(ExprNode* target, SemanticType* toType);
 };

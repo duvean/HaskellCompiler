@@ -147,28 +147,26 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
         break;
     }
 
-    case EXPR_VAR:
-    case EXPR_PATTERN_VAR: {
+    case EXPR_PATTERN_VAR:
+    case EXPR_VAR: {
         if (symbolTable.count(node->name)) {
-            auto& info = symbolTable[node->name];
-            node->inferredType = info.type; // SemanticType*
-            node->localVarIndex = info.index;
-            node->isFunctionRef = false; // Это переменная
-
-            // Debug print
-            // std::cout << "Linked " << node->name << " type: " << info.type->getDescriptor() << "\n";
+            node->inferredType = symbolTable[node->name].type;
+            node->localVarIndex = symbolTable[node->name].index;
+            node->isFunctionRef = false;
+        } 
+        else if (builtinSignatures.count(node->name)) {
+            node->isFunctionRef = true;
+            node->isBuiltinFunciton = true;
+            // Если тип еще не определен контекстом вызова, ставим Unknown
+            if (!node->inferredType) node->inferredType = SemanticType::Unknown();
+        }
+        else if (functionSignatures.count(node->name)) {
+            node->isFunctionRef = true;
+            node->isBuiltinFunciton = false;
+            node->inferredType = functionSignatures[node->name].returnType;
         }
         else {
-            // Проверяем глобальные функции
-            if (functionSignatures.count(node->name)) {
-                node->isFunctionRef = true; // Это функция!
-                node->localVarIndex = -1;
-                node->inferredType = functionSignatures[node->name].returnType;
-            }
-            else {
-                std::cerr << "[Semantic Error] Undefined identifier: " << node->name << "\n";
-                node->inferredType = SemanticType::Unknown();
-            }
+            std::cerr << "[Semantic Error] Undefined identifier: " << node->name << "\n";
         }
         break;
     }
@@ -266,22 +264,47 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
         break;
 
     case EXPR_FUNC_CALL: {
+        // 1. Сначала анализируем саму функцию и аргументы
         if (node->function) analyzeExpr(node->function);
-        for (ExprNode* arg : node->arguments) analyzeExpr(arg);
-        if (node->left) analyzeExpr(node->left);
-        if (node->right) analyzeExpr(node->right);
+        for (auto* arg : node->arguments) analyzeExpr(arg);
 
-        std::string pureName = node->name;
-        size_t spacePos = pureName.find(' ');
-        if (spacePos != std::string::npos) pureName = pureName.substr(0, spacePos);
+        std::string name = node->name;
+        // Очистка от мусора парсера (если имя "head xs", берем только "head")
+        if (name.find(' ') != std::string::npos) name = name.substr(0, name.find(' '));
 
-        if (functionSignatures.count(pureName)) {
-            node->inferredType = functionSignatures[pureName].returnType;
+        // 2. Полиморфная типизация
+        if (name == "head" || name == "tail") {
+            if (!node->arguments.empty()) {
+                SemanticType* argType = node->arguments[0]->inferredType;
+                if (argType && argType->kind == TypeKind::LIST) {
+                    node->inferredType = (name == "head") ? argType->subType : argType;
+                }
+            }
         }
-        else {
-            // Если имя не найдено, возможно это вызов через переменную-функцию (Higher Order Function)
-            // Но пока ставим Unknown
-            node->inferredType = SemanticType::Unknown();
+        else if (name == "null") {
+            node->inferredType = SemanticType::Bool();
+        }
+        else if (name == "map") {
+            // map f xs -> тип результата [тип_результата_f]
+            if (node->arguments.size() >= 2) {
+                SemanticType* funcType = node->arguments[0]->inferredType; 
+                // Если f - это ссылка на функцию, берем её returnType
+                node->inferredType = SemanticType::List(funcType);
+            }
+        }
+        else if (name == "fold") {
+            // fold f acc xs -> тип результата такой же как у acc
+            if (node->arguments.size() >= 2) {
+                node->inferredType = node->arguments[1]->inferredType;
+            }
+        }
+        else if (functionSignatures.count(name)) {
+            node->inferredType = functionSignatures[name].returnType;
+        }
+
+        // Переносим тип вызова в узел-функцию, чтобы в dot она была атрибутирована типом
+        if (node->function && node->inferredType) {
+            node->function->inferredType = node->inferredType;
         }
         break;
     }
@@ -373,4 +396,16 @@ ExprNode* SemanticAnalyzer::createCastNode(ExprNode* target, SemanticType* toTyp
     castNode->inferredType = toType; // Просто копируем указатель
     castNode->isCastNode = true;
     return castNode;
+}
+
+void SemanticAnalyzer::initBuiltins() {
+    builtinSignatures["null"] = { {}, SemanticType::Bool() };
+    builtinSignatures["head"] = { {}, SemanticType::Unknown() };
+    builtinSignatures["tail"] = { {}, SemanticType::Unknown() };
+    
+    // map :: (a -> b) -> [a] -> [b]
+    builtinSignatures["map"]  = { {}, SemanticType::Unknown() };
+    
+    // fold :: (a -> b -> a) -> a -> [b] -> a
+    builtinSignatures["fold"] = { {}, SemanticType::Unknown() };
 }

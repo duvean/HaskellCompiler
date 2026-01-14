@@ -155,6 +155,7 @@ public:
     ExprNode* function = nullptr;
     DeclListNode* decls = nullptr;
     bool isFunctionRef = false;
+    bool isBuiltinFunciton = false;
     
     static ExprNode* createLiteral(const std::string& val);
     static ExprNode* createVarRef(const std::string& name);
