@@ -80,29 +80,40 @@ public:
     std::string getDescriptor() {
         if (kind == TypeKind::PRIMITIVE) {
             switch (base) {
-            case BaseType::INT:    return "I";
-            case BaseType::FLOAT:  return "F";
-            case BaseType::BOOL:   return "Z";
-            case BaseType::STRING: return "Ljava/lang/String;";
-            default:               return "V";
+                case BaseType::INT:    return "I";
+                case BaseType::BOOL:   return "Z";
+                case BaseType::STRING: return "Ljava/lang/String;";
+                default:               return "V";
             }
         }
         if (kind == TypeKind::LIST) return "[" + subType->getDescriptor();
         if (kind == TypeKind::CONSTRUCTOR) return "L" + typeName + ";";
-        if (kind == TypeKind::UNKNOWN) return "V";
+        
+        // ДОБАВИТЬ: Для функций в JVM обычно используется общий интерфейс или LambdaMetafactory
+        // Но для отладки дескриптора можно выводить так:
+        if (kind == TypeKind::FUNCTION) return "Ljava/lang/Object;"; 
+        
         return "V";
     }
 
     std::string toString() {
         if (kind == TypeKind::UNKNOWN) return "?";
-        if (kind == TypeKind::LIST) return "[" + subType->toString();
         if (kind == TypeKind::PRIMITIVE) {
             if (base == BaseType::INT) return "Int";
-            if (base == BaseType::FLOAT) return "Float";
             if (base == BaseType::BOOL) return "Bool";
-            if (base == BaseType::STRING) return "String";
         }
+        if (kind == TypeKind::LIST) return "[" + subType->toString() + "]";
         if (kind == TypeKind::CONSTRUCTOR) return typeName;
+
+        // ДОБАВИТЬ: Красивый вывод функции (Arg1, Arg2) -> Ret
+        if (kind == TypeKind::FUNCTION) {
+            std::string res = "(";
+            for (size_t i = 0; i < paramTypes.size(); ++i) {
+                res += paramTypes[i]->getDescriptor() + (i == paramTypes.size() - 1 ? "" : ",");
+            }
+            res += ") -> " + returnType->getDescriptor();
+            return res;
+        }
         return getDescriptor();
     }
 };
