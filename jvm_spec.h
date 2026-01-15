@@ -82,16 +82,16 @@ public:
             switch (base) {
                 case BaseType::INT:    return "I";
                 case BaseType::BOOL:   return "Z";
+                case BaseType::FLOAT:  return "F";
                 case BaseType::STRING: return "Ljava/lang/String;";
                 default:               return "V";
             }
         }
-        if (kind == TypeKind::LIST) return "[" + subType->getDescriptor();
-        if (kind == TypeKind::CONSTRUCTOR) return "L" + typeName + ";";
+        // Для списков в JVM это [ + дескриптор, но для отладки можно так:
+        if (kind == TypeKind::LIST) return "[" + subType->getDescriptor() + "]"; 
         
-        // ДОБАВИТЬ: Для функций в JVM обычно используется общий интерфейс или LambdaMetafactory
-        // Но для отладки дескриптора можно выводить так:
-        if (kind == TypeKind::FUNCTION) return "Ljava/lang/Object;"; 
+        if (kind == TypeKind::CONSTRUCTOR) return "L" + typeName + ";";
+        if (kind == TypeKind::FUNCTION) return "LFunction;"; 
         
         return "V";
     }
@@ -101,17 +101,17 @@ public:
         if (kind == TypeKind::PRIMITIVE) {
             if (base == BaseType::INT) return "Int";
             if (base == BaseType::BOOL) return "Bool";
+            if (base == BaseType::FLOAT) return "Float";
         }
         if (kind == TypeKind::LIST) return "[" + subType->toString() + "]";
         if (kind == TypeKind::CONSTRUCTOR) return typeName;
 
-        // ДОБАВИТЬ: Красивый вывод функции (Arg1, Arg2) -> Ret
         if (kind == TypeKind::FUNCTION) {
             std::string res = "(";
             for (size_t i = 0; i < paramTypes.size(); ++i) {
-                res += paramTypes[i]->getDescriptor() + (i == paramTypes.size() - 1 ? "" : ",");
+                res += paramTypes[i]->toString() + (i == paramTypes.size() - 1 ? "" : ", ");
             }
-            res += ") -> " + returnType->getDescriptor();
+            res += ") -> " + returnType->toString();
             return res;
         }
         return getDescriptor();

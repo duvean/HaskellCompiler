@@ -61,25 +61,19 @@ void SemanticAnalyzer::analyzeDecl(DeclNode* node) {
     // 3. Обработка тел функций
     else if (node->type == DECL_FUNC) {
         symbolTable.clear();
-        nextLocalIndex = 0;
+        int currentLocalIdx = 0; // Начинаем отсчет локальных переменных функции
 
         auto it = functionSignatures.find(node->name);
-        if (it == functionSignatures.end()) {
-            std::cerr << "[Error] No signature for: " << node->name << "\n";
-            return;
-        }
+        if (it == functionSignatures.end()) return;
         FunctionSignature& sig = it->second;
 
-        // 1. Привязываем параметры к типам
+        // 1. Анализируем паттерны аргументов
         if (node->paramsList) {
-            // Если paramsList - это DeclListNode
             auto* declList = dynamic_cast<DeclListNode*>(node->paramsList);
-            if (declList) {
-                for (size_t i = 0; i < declList->decls.size(); ++i) {
-                    if (i < sig.paramTypes.size()) {
-                        // decls[i]->expr - это обычно PATT_VAR с именем параметра
-                        analyzePattern(declList->decls[i]->expr, sig.paramTypes[i], nextLocalIndex++);
-                    }
+            for (size_t i = 0; i < declList->decls.size(); ++i) {
+                if (i < sig.paramTypes.size()) {
+                    // Теперь паттерны x, (y:ys) и [] получат типы из sig
+                    analyzePattern(declList->decls[i]->expr, sig.paramTypes[i], currentLocalIdx);
                 }
             }
         }
@@ -88,11 +82,8 @@ void SemanticAnalyzer::analyzeDecl(DeclNode* node) {
         if (node->expr) {
             analyzeExpr(node->expr);
 
-            // 3. Проверка возвращаемого типа
-            if (node->expr->inferredType && !node->expr->inferredType->equals(sig.returnType)) {
-                std::cout << "[Warning] Return mismatch in '" << node->name 
-                        << "'. Expected " << sig.returnType->getDescriptor() 
-                        << ", got " << node->expr->inferredType->getDescriptor() << "\n";
+            if (node->expr->type == EXPR_ARRAY && node->expr->block.empty()) {
+                node->expr->inferredType = sig.returnType;
             }
         }
     }
@@ -232,23 +223,14 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
     case EXPR_ARRAY: {
         SemanticType* elemType = SemanticType::Unknown();
 
-        // Если массив не пустой, берем тип первого элемента
         if (!node->block.empty()) {
             analyzeExpr(node->block[0]);
             elemType = node->block[0]->inferredType;
-
-            // Анализируем остальные
-            for (size_t i = 1; i < node->block.size(); ++i) {
-                analyzeExpr(node->block[i]);
-                // Тут можно проверить, что типы совпадают
-            }
-        }
-        // Для конструкции [x]
-        else if (node->left) {
-            analyzeExpr(node->left);
-            elemType = node->left->inferredType;
-        }
-
+            for (auto* item : node->block) analyzeExpr(item);
+        } 
+        // Если список пустой [], а мы знаем, что функция должна вернуть [Float]
+        // Нам нужен механизм передачи "ожидаемого типа" вниз по дереву.
+        
         node->inferredType = SemanticType::List(elemType);
         break;
     }
@@ -390,20 +372,27 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
     }
 }
 
-void SemanticAnalyzer::analyzePattern(ExprNode* pattern, SemanticType* expectedType, int sourceLocalIndex) {
+void SemanticAnalyzer::analyzePattern(ExprNode* pattern, SemanticType* expectedType, int& localIdx) {
     if (!pattern || !expectedType) return;
 
+    // Устанавливаем тип самому узлу паттерна (убираем ?)
+    pattern->inferredType = expectedType;
+
     if (pattern->type == EXPR_PATTERN_VAR) {
-        // Устанавливаем тип и индекс для переменной в таблице
-        symbolTable[pattern->name] = LocalVariable(expectedType, sourceLocalIndex);
-        pattern->inferredType = expectedType;
-        pattern->localVarIndex = sourceLocalIndex;
+        // Добавляем переменную в таблицу символов
+        symbolTable[pattern->name] = LocalVariable(expectedType, localIdx);
+        pattern->localVarIndex = localIdx++; // Инкрементируем ссылку
     }
     else if (pattern->type == EXPR_PATTERN_CONS) {
         if (expectedType->kind == TypeKind::LIST) {
-            analyzePattern(pattern->left, expectedType->subType, nextLocalIndex++);
-            analyzePattern(pattern->right, expectedType, nextLocalIndex++);
+            // x : xs -> x получает тип элемента, xs получает тип списка
+            analyzePattern(pattern->left, expectedType->subType, localIdx);
+            analyzePattern(pattern->right, expectedType, localIdx);
         }
+    }
+    else if (pattern->type == EXPR_PATTERN_LIST) {
+        // Для пустого списка [] просто подтверждаем, что это список нужного типа
+        // Новых переменных не создаем, localIdx не меняем
     }
 }
 
