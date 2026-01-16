@@ -11,12 +11,22 @@ void SemanticAnalyzer::analyzeProgram(ProgramNode* root) {
     // 1. СНАЧАЛА создаем класс
     if (currentClass == nullptr) {
         constPool.addUtf8("Code");
-        currentClass = new JvmClass("Main", constPool);
-        currentClass->classIdx = constPool.addClass("Main");
+        currentClass = new JvmClass("HaskellProgram", constPool);
+        currentClass->classIdx = constPool.addClass("HaskellProgram");
         currentClass->superIdx = constPool.addClass("java/lang/Object");
-    }
 
-    std::cout << "--- Semantic Analysis Start ---\n";
+        // 1. Создаем MethodRef на Object.<init> (инструкция invokespecial будет использовать это)
+        // Это индекс #9 в вашем выводе
+        int superInitRef = constPool.addMethodRef("java/lang/Object", "<init>", "()V");
+
+        // 2. Создаем структуру метода для НАШЕГО класса
+        JvmMethod initMethod("<init>", "()V", nullptr);
+        initMethod.nameIdx = constPool.addUtf8("<init>");
+        initMethod.descIdx = constPool.addUtf8("()V");
+        initMethod.accessFlags = 0x0001; // ACC_PUBLIC (не static!)
+
+        currentClass->methods.push_back(initMethod);
+    }
 
     // 2. Сначала собираем ВСЕ сигнатуры (первый проход)
     // Это важно, чтобы функции видели друг друга
@@ -32,6 +42,23 @@ void SemanticAnalyzer::analyzeProgram(ProgramNode* root) {
             analyzeDecl(decl);
         }
     }
+
+    // 4. После анализа всех деклараций добавляем JVM Entry Point
+    // Это public static void main(String[] args)
+
+    // Регистрируем дескриптор ([Ljava/lang/String;)V
+    std::string mainDesc = "([Ljava/lang/String;)V";
+    
+    // Создаем метод-заглушку (body = nullptr, так как код мы сгенерируем вручную позже)
+    JvmMethod entryPoint("main", mainDesc, nullptr);
+    entryPoint.nameIdx = constPool.addUtf8("main");
+    entryPoint.descIdx = constPool.addUtf8(mainDesc);
+    entryPoint.accessFlags = 0x0009; // public static
+
+    // Добавляем в список методов класса
+    currentClass->methods.push_back(entryPoint);
+    
+    std::cout << "[JvmGen] Added synthetic JVM entry point 'main' -> calls 'haskellMain'\n";
 }
 
 void SemanticAnalyzer::analyzeDeclList(DeclListNode* list) {
@@ -92,14 +119,25 @@ void SemanticAnalyzer::analyzeDecl(DeclNode* node) {
             return;
         }
         FunctionSignature& sig = it->second;
-        std::string desc = sig.getDescriptor();
+        std::string internalName = node->name;
+        std::string descriptor = sig.getDescriptor();
+
+        // Обработка main
+        if (node->name == "main") {
+            // Переименовываем haskell-функцию во внутреннюю
+            internalName = "haskellMain";
+            // Здесь можно принудительно выставить дескриптор ()V, если IO обрабатывается как Void
+            // descriptor = "()V"; 
+            
+            std::cout << "[JvmGen] Renaming user 'main' to '" << internalName << "' for JVM compatibility.\n";
+        }
 
         // 2. Создаем JVM метод
-        JvmMethod method(node->name, desc, node);
+        JvmMethod method(internalName, descriptor, node);
         
         // Регистрируем имя и дескриптор в Constant Pool
-        method.nameIdx = constPool.addUtf8(node->name);
-        method.descIdx = constPool.addUtf8(desc);
+        method.nameIdx = constPool.addUtf8(internalName);
+        method.descIdx = constPool.addUtf8(descriptor);
 
         // 3. Подготовка к анализу тела
         symbolTable.clear();
@@ -316,7 +354,7 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
         bool isBuiltin = false; // Флаг, что функция из HaskellRuntime
 
         // СПЕЦИАЛЬНАЯ ЛОГИКА для head/tail (Динамическая сигнатура)
-        if ((name == "head" || name == "tail" || name == "null") && !allArgs.empty()) {
+        if ((name == "head" || name == "tail" || name == "isNull") && !allArgs.empty()) {
         SemanticType* argType = allArgs[0]->inferredType;
         
         // Работаем только если аргумент - список
@@ -325,7 +363,7 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
             
             if (name == "head")      sig.returnType = argType->subType;
                 else if (name == "tail") sig.returnType = argType;
-                else if (name == "null") sig.returnType = SemanticType::Bool(); // Динамически [T] -> Bool
+                else if (name == "isNull") sig.returnType = SemanticType::Bool(); // Динамически [T] -> Bool
                 
                 foundSig = true;
                 isBuiltin = true;
@@ -509,7 +547,7 @@ ExprNode* SemanticAnalyzer::createCastNode(ExprNode* target, SemanticType* toTyp
 }
 
 void SemanticAnalyzer::initBuiltins() {
-    builtinSignatures["null"] = { {}, SemanticType::Bool() };
+    builtinSignatures["isNull"] = { {}, SemanticType::Bool() };
     builtinSignatures["head"] = { {}, SemanticType::Unknown() };
     builtinSignatures["tail"] = { {}, SemanticType::Unknown() };
 

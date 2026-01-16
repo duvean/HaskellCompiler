@@ -12,17 +12,16 @@ struct FunctionSignature {
     std::vector<SemanticType*> paramTypes;
     SemanticType* returnType;
     std::string getDescriptor() const {
-        std::string res = "(";
+    std::string res = "(";
         for (auto* t : paramTypes) {
-            if (t) res += t->getDescriptor();
+            if (t) {
+                std::string d = t->getDescriptor();
+                if (d != "V") res += d;
+            }
         }
         res += ")";
-        
-        if (returnType) {
-            res += returnType->getDescriptor();
-        } else {
-            res += "V";
-        }
+        if (returnType) res += returnType->getDescriptor();
+        else res += "V";
         return res;
     }
 };

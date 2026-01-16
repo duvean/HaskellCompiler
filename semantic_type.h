@@ -78,6 +78,7 @@ public:
             }
         }
         if (kind == TypeKind::LIST) return "[" + subType->getDescriptor();
+        if (kind == TypeKind::CONSTRUCTOR && typeName == "IO") return "V";
         if (kind == TypeKind::CONSTRUCTOR) return "L" + typeName + ";";
         
         // Если функция передается как аргумент (лямбда), в JVM это обычно Object или спец интерфейс

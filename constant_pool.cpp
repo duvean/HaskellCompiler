@@ -53,7 +53,6 @@ int ConstantPool::addStringLiteral(const std::string &val)
 
 int ConstantPool::addInteger(int val)
 {
-    // Integer не кешируем для простоты (хотя можно)
     ConstantPoolEntry e;
     e.tag = CONSTANT_Integer;
     e.intValue = val;
