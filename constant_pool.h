@@ -17,18 +17,21 @@ enum JvmConstantTag {
 };
 
 struct ConstantPoolEntry {
-    JvmConstantTag tag;
-    std::string stringValue; // для Utf8
-    int intValue;            // для Integer
-    float floatValue;        // для Float
-    int refIndex1;           // class_index / string_index
-    int refIndex2;           // name_and_type_index
+    JvmConstantTag  tag;
+    std::string     stringValue;  // для Utf8
+    int             intValue;     // для Integer
+    float           floatValue;   // для Float
+    int             refIndex1;    // class_index / string_index
+    int             refIndex2;    // name_and_type_index
 };
 
 class ConstantPool {
 private:
-    std::vector<ConstantPoolEntry> entries;
-    std::map<std::string, int> utf8Cache;
+    std::vector<ConstantPoolEntry>  entries;
+    std::map<std::string, int>      utf8Cache;   // Кэш для CONSTANT_utf8
+    std::map<std::string, int>      stringCache; // Кэш для CONSTANT_String
+    std::map<int, int>              intCache;    // Кэш для CONSTANT_Integer
+    std::map<float, int>            floatCache;  // Кэш для CONSTANT_Float
 
 public:
     int addEntry(const ConstantPoolEntry& entry);

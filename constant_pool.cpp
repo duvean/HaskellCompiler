@@ -39,8 +39,10 @@ int ConstantPool::addUtf8(const std::string &val)
     return idx;
 }
 
-int ConstantPool::addStringLiteral(const std::string &val)
-{
+int ConstantPool::addStringLiteral(const std::string &val) {
+    if (stringCache.find(val) != stringCache.end()) 
+        return stringCache[val];
+
     int utf8Index = addUtf8(val);
 
     ConstantPoolEntry e;
@@ -48,26 +50,37 @@ int ConstantPool::addStringLiteral(const std::string &val)
     e.refIndex1 = utf8Index;
     entries.push_back(e);
 
-    return (int)entries.size() - 1;
+    int idx = (int)entries.size() - 1;
+    stringCache[val] = idx;
+    return idx;
 }
 
-int ConstantPool::addInteger(int val)
-{
+int ConstantPool::addInteger(int val) {
+    if (intCache.find(val) != intCache.end()) 
+        return intCache[val];
+
     ConstantPoolEntry e;
     e.tag = CONSTANT_Integer;
     e.intValue = val;
     entries.push_back(e);
-    return (int)entries.size() - 1;
+
+    int idx = (int)entries.size() - 1;
+    intCache[val] = idx;
+    return idx;
 }
 
-int ConstantPool::addFloat(float val)
-{
+int ConstantPool::addFloat(float val) {
+    if (floatCache.find(val) != floatCache.end()) 
+        return floatCache[val];
+
     ConstantPoolEntry e;
     e.tag = CONSTANT_Float;
     e.floatValue = val;
     entries.push_back(e);
-    
-    return (int)entries.size() - 1;
+
+    int idx = (int)entries.size() - 1;
+    floatCache[val] = idx;
+    return idx;
 }
 
 int ConstantPool::addClass(const std::string &className)
