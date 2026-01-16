@@ -2,11 +2,7 @@
 #include <iostream>
 
 void SemanticAnalyzer::analyze(ProgramNode* root) {
-    if (!root) return;
-    // В ProgramNode у тебя вектор decls
-    for (auto decl : root->decls) {
-        analyzeDecl(decl);
-    }
+    analyzeProgram(root);
 }
 
 void SemanticAnalyzer::analyzeProgram(ProgramNode* root) {
@@ -14,10 +10,10 @@ void SemanticAnalyzer::analyzeProgram(ProgramNode* root) {
 
     // 1. СНАЧАЛА создаем класс
     if (currentClass == nullptr) {
+        constPool.addUtf8("Code");
         currentClass = new JvmClass("Main", constPool);
         currentClass->classIdx = constPool.addClass("Main");
         currentClass->superIdx = constPool.addClass("java/lang/Object");
-        constPool.addUtf8("Code");
     }
 
     std::cout << "--- Semantic Analysis Start ---\n";
@@ -317,30 +313,45 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
         // 1. Пытаемся получить сигнатуру
         FunctionSignature sig;
         bool foundSig = false;
+        bool isBuiltin = false; // Флаг, что функция из HaskellRuntime
 
         // СПЕЦИАЛЬНАЯ ЛОГИКА для head/tail (Динамическая сигнатура)
-        if ((name == "head" || name == "tail") && !allArgs.empty()) {
-            SemanticType* argType = allArgs[0]->inferredType;
-            if (argType && argType->kind == TypeKind::LIST) {
-                sig.paramTypes = { argType };
-                sig.returnType = (name == "head") ? argType->subType : argType;
+        if ((name == "head" || name == "tail" || name == "null") && !allArgs.empty()) {
+        SemanticType* argType = allArgs[0]->inferredType;
+        
+        // Работаем только если аргумент - список
+        if (argType && argType->kind == TypeKind::LIST) {
+            sig.paramTypes = { argType };
+            
+            if (name == "head")      sig.returnType = argType->subType;
+                else if (name == "tail") sig.returnType = argType;
+                else if (name == "null") sig.returnType = SemanticType::Bool(); // Динамически [T] -> Bool
+                
                 foundSig = true;
+                isBuiltin = true;
             }
-        } 
+        }
+
         // ОБЩАЯ ЛОГИКА (из словарей)
         else if (builtinSignatures.count(name)) {
             sig = builtinSignatures[name];
             foundSig = true;
+            isBuiltin = true;
         } else if (functionSignatures.count(name)) {
             sig = functionSignatures[name];
             foundSig = true;
+            isBuiltin = false;
         }
 
         // 2. Если сигнатура определена (динамически или статически)
         if (foundSig) {
             // Устанавливаем идентификатору тип функции
             baseFuncNode->inferredType = SemanticType::Function(sig.paramTypes, sig.returnType);
-            
+            baseFuncNode->isBuiltinFunciton = isBuiltin;
+
+            std::string targetClass = isBuiltin ? "HaskellRuntime" : currentClass->className;
+            node->constPoolIndex = constPool.addMethodRef(targetClass, name, sig.getDescriptor());
+
             // ТИПИЗАЦИЯ ЦЕПОЧКИ (чтобы не было ?)
             std::vector<ExprNode*> chain;
             ExprNode* curr = node;
@@ -361,18 +372,9 @@ void SemanticAnalyzer::analyzeExpr(ExprNode* node) {
                 }
                 chain[i]->inferredType = currentType;
             }
-
-            int mRefIdx = constPool.addMethodRef("Main", name, sig.getDescriptor());
-        
-            // Сохраняем этот индекс в узле, он пригодится при генерации invokestatic
-            node->constPoolIndex = mRefIdx;
         } 
         
-        // Если это map/fold или другие сложные случаи
-        else if (name == "null") {
-            node->inferredType = SemanticType::Bool();
-        }
-        
+        // Если это map/fold или другие сложные случаи 
         else if (name == "map") {
             if (allArgs.size() < 2) {
                 // Если аргументов меньше 2, это частичное применение (пока Unknown или Function)
@@ -539,6 +541,11 @@ void SemanticAnalyzer::initBuiltins() {
     // IO функции
     builtinSignatures["putStrLn"] = { {SemanticType::String()}, SemanticType::IO() };
     builtinSignatures["print"] =    { {SemanticType::Unknown()}, SemanticType::IO() };
+
+    builtinSignatures["readInt"]      = { {}, SemanticType::Int() };
+    builtinSignatures["readFloat"]    = { {}, SemanticType::Float() };
+    builtinSignatures["readString"]   = { {}, SemanticType::String() };
+    builtinSignatures["readIntArray"] = { {}, SemanticType::List(SemanticType::Int()) };
 }
 
 void SemanticAnalyzer::flattenCall(ExprNode* node, std::vector<ExprNode*>& args, ExprNode** finalFunc) {
@@ -602,6 +609,7 @@ void SemanticAnalyzer::printDebugInfo() {
 
     if (currentClass) {
         std::cout << "Class: " << currentClass->className << "\n";
+        std::cout << "--------------------------------------------\n";
         for (const auto& m : currentClass->methods) {
             std::cout << "Method: " << m.name << "\n";
             std::cout << "  Descriptor: " << m.descriptor << "\n";
