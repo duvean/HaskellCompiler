@@ -1,4 +1,5 @@
 #include "semantic_analyzer.h"
+#include "class_builder.h"
 #include <iostream>
 
 void SemanticAnalyzer::analyze(ProgramNode* root) {
@@ -58,8 +59,10 @@ void SemanticAnalyzer::analyzeProgram(ProgramNode* root) {
     entryPoint.accessFlags = 0x0009; // ACC_PUBLIC | ACC_STATIC
 
     currentClass->methods.push_back(entryPoint);
-    
     std::cout << "[JvmGen] Added synthetic JVM entry point 'main' -> calls 'haskellMain'\n";
+
+    ClassBuilder builder("output/HaskellProgram.class", currentClass);
+    bool res = builder.build();
 }
 
 void SemanticAnalyzer::analyzeDeclList(DeclListNode* list) {
