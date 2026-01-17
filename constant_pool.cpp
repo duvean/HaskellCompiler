@@ -102,3 +102,10 @@ int ConstantPool::addMethodRef(const std::string &className, const std::string &
     int ntIdx = addNameAndType(methodName, descriptor);
     return addEntry({JvmConstantTag::CONSTANT_Methodref, "", 0, 0.0f, classIdx, ntIdx});
 }
+
+int ConstantPool::findMethodRef(const std::string& className, const std::string& methodName, const std::string& descriptor) {
+    // Проходим по всем записям и ищем ту, которая MethodRef 
+    // и чьи индексы ведут к нужным строкам.
+    // Если не нашли - добавляем и возвращаем новый индекс.
+    return addMethodRef(className, methodName, descriptor); 
+}

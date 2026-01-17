@@ -16,6 +16,14 @@ struct JvmMethod {
     std::vector<LocalVariable> locals;
     DeclNode* body;
 
+    // Для синтетических вызовов (например main -> haskellMain)
+    std::string callTargetName;
+
+    void syncWithPool(ConstantPool& cp) {
+        nameIdx = cp.addUtf8(name);
+        descIdx = cp.addUtf8(descriptor);
+    }
+    
     JvmMethod(std::string n, std::string d, DeclNode* node) 
         : name(n), descriptor(d), body(node) {}
 };

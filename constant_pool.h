@@ -44,6 +44,8 @@ public:
     int addClass(const std::string& className);
     int addNameAndType(const std::string& name, const std::string& descriptor);
     int addMethodRef(const std::string& className, const std::string& methodName, const std::string& descriptor);
+    
+    int findMethodRef(const std::string& className, const std::string& methodName, const std::string& descriptor);
 
     const std::vector<ConstantPoolEntry>& getEntries() const { return entries; }
     ConstantPool() { entries.emplace_back(); }

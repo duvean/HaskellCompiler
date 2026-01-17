@@ -50,9 +50,12 @@ public:
     bool build();
     
 private:
+    void prepareConstants();
     void writeConstantPool();
     void writeInterfaces();
     void writeFields();
     void writeMethods();
     void writeAttributes(); // Атрибуты самого класса (SourceFile и т.д.)
+
+    uint8_t getReturnOpcode(const std::string& descriptor);
 };

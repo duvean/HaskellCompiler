@@ -1,6 +1,8 @@
 #include "class_builder.h"
 
 bool ClassBuilder::build() {
+    prepareConstants();
+
     out.open(filename, std::ios::binary);
     if (!out.is_open()) return false;
 
@@ -39,6 +41,18 @@ bool ClassBuilder::build() {
     out.close();
     std::cout << "[ClassBuilder] Successfully wrote " << filename << "\n";
     return true;
+}
+
+void ClassBuilder::prepareConstants() {
+    // Убеждаемся, что базовые вещи на месте
+    jvmClass->classIdx = jvmClass->cp.addClass(jvmClass->className);
+    jvmClass->superIdx = jvmClass->cp.addClass("java/lang/Object");
+    jvmClass->cp.addUtf8("Code"); // Индекс атрибута Code
+
+    // Синхронизируем каждый метод
+    for (auto& method : jvmClass->methods) {
+        method.syncWithPool(jvmClass->cp);
+    }
 }
 
 void ClassBuilder::writeConstantPool() {
@@ -130,17 +144,18 @@ void ClassBuilder::writeMethods() {
             bytecode.push_back(0xB1);
         } else if (method.name == "main" && method.descriptor.find("([L") != std::string::npos) {
             // Синтетический main: invokestatic haskellMain, return
-            // haskellMain у вас #43 (MethodRef)
-            bytecode = { 0xB8 }; // invokestatic
-            uint16_t haskellMainRef = 30; // ХАРДКОД ДЛЯ ТЕСТА!
-            bytecode.push_back((haskellMainRef >> 8) & 0xFF);
-            bytecode.push_back(haskellMainRef & 0xFF);
+            // Ищем или добавляем MethodRef динамически
+            int targetRef = jvmClass->cp.addMethodRef(jvmClass->className, "haskellMain", "()V");
+            
+            bytecode.push_back(0xB8); // invokestatic
+            bytecode.push_back((targetRef >> 8) & 0xFF);
+            bytecode.push_back(targetRef & 0xFF);
             bytecode.push_back(0xB1); // return
         } else {
             // Для остальных пока просто return (для void) или ireturn
             // Внимание: если метод должен возвращать int, просто return крашнет верификатор
             // Но для проверки структуры файла пойдет
-            bytecode = { 0xB1 }; // return (void)
+            bytecode = { getReturnOpcode(method.descriptor) };
         }
 
         // --- СЧИТАЕМ РАЗМЕР АТРИБУТА CODE ---
@@ -155,5 +170,18 @@ void ClassBuilder::writeMethods() {
         
         writeU2(0); // Exception Table Length (0)
         writeU2(0); // Attributes inside Code (LineNumberTable etc.) - 0 for now
+    }
+}
+
+uint8_t ClassBuilder::getReturnOpcode(const std::string& descriptor) {
+    char returnType = descriptor.back(); // Последний символ дескриптора, напр. (I[I)I -> I
+    switch (returnType) {
+        case 'V': return 0xB1; // RETURN (void)
+        case 'I': 
+        case 'Z': return 0xAC; // IRETURN (int, bool)
+        case 'F': return 0xAE; // FRETURN (float)
+        case ';': 
+        case ']': return 0xB0; // ARETURN (объекты и массивы)
+        default:  return 0xB1;
     }
 }
